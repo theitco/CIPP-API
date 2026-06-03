@@ -17,6 +17,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install zip
+        run: sudo apt-get update && sudo apt-get install -y zip
+
       - name: Create deployment ZIP
         run: zip -r $ZIP_PATH .
 
