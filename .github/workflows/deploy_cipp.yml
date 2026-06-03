@@ -24,7 +24,7 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'cipp'
+          app-name: 'cipp-amh5dwdwhhgeaj5'
           slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CIPP }}
