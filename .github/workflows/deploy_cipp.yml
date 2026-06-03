@@ -20,9 +20,22 @@ jobs:
       - name: Create deployment ZIP
         run: zip -r $ZIP_PATH .
 
+      - name: Extract publish profile credentials
+        id: extract
+        run: |
+          PROFILE="${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CIPP }}"
+
+          USERNAME=$(echo "$PROFILE" | grep -oP 'userName="\K[^"]+')
+          PASSWORD=$(echo "$PROFILE" | grep -oP 'userPWD="\K[^"]+')
+          PUBLISHURL=$(echo "$PROFILE" | grep -oP 'publishUrl="\K[^"]+' | head -n 1)
+
+          echo "username=$USERNAME" >> $GITHUB_OUTPUT
+          echo "password=$PASSWORD" >> $GITHUB_OUTPUT
+          echo "publishurl=$PUBLISHURL" >> $GITHUB_OUTPUT
+
       - name: Deploy via ZipDeploy API
         run: |
           curl -X POST \
-            -u "${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CIPP }}" \
+            -u "${{ steps.extract.outputs.username }}:${{ steps.extract.outputs.password }}" \
             --data-binary @$ZIP_PATH \
-            "https://cipp-amh5dwdwhhgeaj5.scm.canadacentral-01.azurewebsites.net/api/zipdeploy"
+            "https://${{ steps.extract.outputs.publishurl }}/api/zipdeploy"
