@@ -11,13 +11,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Create ZIP package
-        run: |
-          if (Test-Path "cipp.zip") { Remove-Item "cipp.zip" }
-          Compress-Archive -Path * -DestinationPath cipp.zip
+      - name: Create ZIP
+        run: Compress-Archive -Path * -DestinationPath cipp.zip -Force
 
       - name: Extract publish profile credentials
         id: extract
@@ -25,24 +22,26 @@ jobs:
         run: |
           $profile = '${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CIPP }}'
 
-          $username = ($profile | Select-String -Pattern 'userName="([^"]+)"').Matches.Groups[1].Value
-          $password = ($profile | Select-String -Pattern 'userPWD="([^"]+)"').Matches.Groups[1].Value
-          $publishUrl = ($profile | Select-String -Pattern 'publishUrl="([^"]+)"').Matches.Groups[1].Value
+          $user = ($profile | Select-String 'userName="([^"]+)"').Matches.Groups[1].Value
+          $pass = ($profile | Select-String 'userPWD="([^"]+)"').Matches.Groups[1].Value
+          $rawUrl = ($profile | Select-String 'publishUrl="([^"]+)"').Matches.Groups[1].Value
 
-          echo "username=$username" >> $env:GITHUB_OUTPUT
-          echo "password=$password" >> $env:GITHUB_OUTPUT
-          echo "publishurl=$publishUrl" >> $env:GITHUB_OUTPUT
+          # Remove :443 if present
+          $cleanUrl = $rawUrl.Split(':')[0]
 
-      - name: Deploy via ZipDeploy API
+          echo "username=$user" >> $env:GITHUB_OUTPUT
+          echo "password=$pass" >> $env:GITHUB_OUTPUT
+          echo "publishurl=$cleanUrl" >> $env:GITHUB_OUTPUT
+
+      - name: Deploy via ZipDeploy
         shell: pwsh
         run: |
           $pair = "${{ steps.extract.outputs.username }}:${{ steps.extract.outputs.password }}"
-          $bytes = [System.Text.Encoding]::UTF8.GetBytes($pair)
-          $encoded = [Convert]::ToBase64String($bytes)
+          $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
 
           Invoke-WebRequest `
             -Uri "https://${{ steps.extract.outputs.publishurl }}/api/zipdeploy" `
-            -Headers @{ Authorization = "Basic $encoded" } `
+            -Headers @{ Authorization = "Basic $auth" } `
             -Method POST `
             -InFile "cipp.zip" `
             -ContentType "application/zip"
