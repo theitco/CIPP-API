@@ -6,39 +6,43 @@ on:
       - master
   workflow_dispatch:
 
-env:
-  ZIP_PATH: cipp.zip
-
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install zip
-        run: sudo apt-get update && sudo apt-get install -y zip
-
-      - name: Create deployment ZIP
-        run: zip -r $ZIP_PATH .
+      - name: Create ZIP package
+        run: |
+          if (Test-Path "cipp.zip") { Remove-Item "cipp.zip" }
+          Compress-Archive -Path * -DestinationPath cipp.zip
 
       - name: Extract publish profile credentials
         id: extract
+        shell: pwsh
         run: |
-          PROFILE="${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CIPP }}"
+          $profile = '${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CIPP }}'
 
-          USERNAME=$(echo "$PROFILE" | grep -oP 'userName="\K[^"]+')
-          PASSWORD=$(echo "$PROFILE" | grep -oP 'userPWD="\K[^"]+')
-          PUBLISHURL=$(echo "$PROFILE" | grep -oP 'publishUrl="\K[^"]+' | head -n 1)
+          $username = ($profile | Select-String -Pattern 'userName="([^"]+)"').Matches.Groups[1].Value
+          $password = ($profile | Select-String -Pattern 'userPWD="([^"]+)"').Matches.Groups[1].Value
+          $publishUrl = ($profile | Select-String -Pattern 'publishUrl="([^"]+)"').Matches.Groups[1].Value
 
-          echo "username=$USERNAME" >> $GITHUB_OUTPUT
-          echo "password=$PASSWORD" >> $GITHUB_OUTPUT
-          echo "publishurl=$PUBLISHURL" >> $GITHUB_OUTPUT
+          echo "username=$username" >> $env:GITHUB_OUTPUT
+          echo "password=$password" >> $env:GITHUB_OUTPUT
+          echo "publishurl=$publishUrl" >> $env:GITHUB_OUTPUT
 
       - name: Deploy via ZipDeploy API
+        shell: pwsh
         run: |
-          curl -X POST \
-            -u "${{ steps.extract.outputs.username }}:${{ steps.extract.outputs.password }}" \
-            --data-binary @$ZIP_PATH \
-            "https://${{ steps.extract.outputs.publishurl }}/api/zipdeploy"
+          $pair = "${{ steps.extract.outputs.username }}:${{ steps.extract.outputs.password }}"
+          $bytes = [System.Text.Encoding]::UTF8.GetBytes($pair)
+          $encoded = [Convert]::ToBase64String($bytes)
+
+          Invoke-WebRequest `
+            -Uri "https://${{ steps.extract.outputs.publishurl }}/api/zipdeploy" `
+            -Headers @{ Authorization = "Basic $encoded" } `
+            -Method POST `
+            -InFile "cipp.zip" `
+            -ContentType "application/zip"
