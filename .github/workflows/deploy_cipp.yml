@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
           $pass = ($profile | Select-String 'userPWD="([^"]+)"').Matches.Groups[1].Value
           $publishUrl = ($profile | Select-String 'publishUrl="([^"]+)"').Matches.Groups[1].Value
 
-          # Remove :443 if present
+          # Clean up :443 if present
           $cleanUrl = $publishUrl -replace ':443',''
 
           $pair = "$user:$pass"
