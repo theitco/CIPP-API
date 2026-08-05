@@ -16,9 +16,9 @@ jobs:
       - name: Zip project
         run: zip -r cippapi.zip .
 
-      - name: Deploy to Azure Function App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE }}
-          package: cippapi.zip
+      - name: Deploy via Kudu ZipDeploy
+        run: |
+          curl -X POST \
+            -u "${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE_USERNAME }}:${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE_PASSWORD }}" \
+            --data-binary @cippapi.zip \
+            "https://cipp-linux-api.scm.azurewebsites.net/api/zipdeploy"
