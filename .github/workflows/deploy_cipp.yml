@@ -12,25 +12,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create ZIP
+      - name: Create ZIP package
         shell: pwsh
         run: |
           Compress-Archive -Path * -DestinationPath CIPP.zip -Force
 
-      - name: Deploy via ZipDeploy
+      - name: Deploy to Azure Function App
         shell: pwsh
         run: |
           $profile = "${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE }}"
           $user = ($profile | Select-String 'userName="([^"]+)"').Matches.Groups[1].Value
           $pass = ($profile | Select-String 'userPWD="([^"]+)"').Matches.Groups[1].Value
           $publishUrl = ($profile | Select-String 'publishUrl="([^"]+)"').Matches.Groups[1].Value
-
-          # Clean up :443 if present
           $cleanUrl = $publishUrl -replace ':443',''
-
           $pair = "$user:$pass"
           $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
-
           Write-Host "Deploying to $cleanUrl"
           Invoke-WebRequest -Uri "https://$cleanUrl/api/zipdeploy" `
             -Headers @{ Authorization = "Basic $auth" } `
