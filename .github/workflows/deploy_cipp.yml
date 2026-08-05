@@ -1,54 +1,39 @@
 name: Deploy CIPP API
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
+  push:
+    branches: [ master ]
 
 jobs:
   deploy:
-    runs-on: windows-latest
-
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Create ZIP
-        run: Compress-Archive -Path * -DestinationPath cipp.zip -Force
-
-      - name: Extract publish profile credentials
-        id: extract
         shell: pwsh
         run: |
-          $profile = '${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CIPP }}'
-
-          $user = ($profile | Select-String 'userName="([^"]+)"').Matches.Groups[1].Value
-          $pass = ($profile | Select-String 'userPWD="([^"]+)"').Matches.Groups[1].Value
-          $rawUrl = ($profile | Select-String 'publishUrl="([^"]+)"').Matches.Groups[1].Value
-
-          # Remove :443 if present
-          $cleanUrl = $rawUrl.Split(':')[0]
-
-          echo "username=$user" >> $env:GITHUB_OUTPUT
-          echo "password=$pass" >> $env:GITHUB_OUTPUT
-          echo "publishurl=$cleanUrl" >> $env:GITHUB_OUTPUT
+          Compress-Archive -Path * -DestinationPath CIPP.zip -Force
 
       - name: Deploy via ZipDeploy
-shell: pwsh
-run: |
-  $profile = "${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE }}"
-  $user = ($profile | Select-String 'userName="([^"]+)"').Matches.Groups[1].Value
-  $pass = ($profile | Select-String 'userPWD="([^"]+)"').Matches.Groups[1].Value
-  $publishUrl = ($profile | Select-String 'publishUrl="([^"]+)"').Matches.Groups[1].Value
+        shell: pwsh
+        run: |
+          $profile = "${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE }}"
+          $user = ($profile | Select-String 'userName="([^"]+)"').Matches.Groups[1].Value
+          $pass = ($profile | Select-String 'userPWD="([^"]+)"').Matches.Groups[1].Value
+          $publishUrl = ($profile | Select-String 'publishUrl="([^"]+)"').Matches.Groups[1].Value
 
-  $pair = "$user:$pass"
-  $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
+          # Remove :443 if present
+          $cleanUrl = $publishUrl -replace ':443',''
 
-  Write-Host "Deploying to $publishUrl"
-  Invoke-WebRequest -Uri "https://$publishUrl/api/zipdeploy" `
-    -Headers @{ Authorization = "Basic $auth" } `
-    -Method POST `
-    -InFile "CIPP.zip" `
-    -ContentType "application/octet-stream"
+          $pair = "$user:$pass"
+          $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
 
-
+          Write-Host "Deploying to $cleanUrl"
+          Invoke-WebRequest -Uri "https://$cleanUrl/api/zipdeploy" `
+            -Headers @{ Authorization = "Basic $auth" } `
+            -Method POST `
+            -InFile "CIPP.zip" `
+            -ContentType "application/octet-stream"
