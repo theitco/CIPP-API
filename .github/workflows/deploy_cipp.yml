@@ -34,14 +34,20 @@ jobs:
           echo "publishurl=$cleanUrl" >> $env:GITHUB_OUTPUT
 
       - name: Deploy via ZipDeploy
-        shell: pwsh
-        run: |
-          $pair = "${{ steps.extract.outputs.username }}:${{ steps.extract.outputs.password }}"
-          $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
+shell: pwsh
+run: |
+  $profile = "${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE }}"
+  $user = ($profile | Select-String 'userName="([^"]+)"').Matches.Groups[1].Value
+  $pass = ($profile | Select-String 'userPWD="([^"]+)"').Matches.Groups[1].Value
+  $publishUrl = ($profile | Select-String 'publishUrl="([^"]+)"').Matches.Groups[1].Value
 
-          Invoke-WebRequest `
-            -Uri "https://${{ steps.extract.outputs.publishurl }}/api/zipdeploy" `
-            -Headers @{ Authorization = "Basic $auth" } `
-            -Method POST `
-            -InFile "cipp.zip" `
-            -ContentType "application/zip"
+  $pair = "$user:$pass"
+  $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
+
+  Write-Host "Deploying to $publishUrl"
+  Invoke-WebRequest -Uri "https://$publishUrl/api/zipdeploy" `
+    -Headers @{ Authorization = "Basic $auth" } `
+    -Method POST `
+    -InFile "CIPP.zip" `
+    -ContentType "application/octet-stream"
+
