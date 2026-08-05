@@ -18,13 +18,11 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Build project
-        run: dotnet build ./CIPP.API/CIPP.API.csproj --configuration Release
-
+        run: dotnet build ./CIPP-API/CIPP-API.csproj --configuration Release
 
       - name: Deploy to Azure Web App (Linux)
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE }}
-          package: './CIPP.API/bin/Release/net8.0/publish'
-
+          package: './CIPP-API/bin/Release/net8.0/publish'
