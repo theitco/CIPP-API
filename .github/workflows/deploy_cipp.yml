@@ -1,29 +1,28 @@
-name: Build and deploy Powershell project to Azure Function App
+name: Deploy CIPP API (Linux)
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
+    branches: [ master ]
 
 jobs:
   build-and-deploy:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PowerShell
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Run build
+      - name: Build project
         run: dotnet build --configuration Release
 
-      - name: Deploy to Azure Functions
-        uses: Azure/functions-action@v1
+      - name: Deploy to Azure Web App (Linux)
+        uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
-          package: '.'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISH_PROFILE }}
+          package: '.'
